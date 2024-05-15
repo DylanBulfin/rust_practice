@@ -1,10 +1,12 @@
-pub mod types;
-pub mod paths;
+mod types;
+mod paths;
+mod commands; 
 use std::io::{self, BufRead, Write};
+
 
 use types::State;
 
-use crate::paths::get_abs_path;
+use crate::paths::get_canon_path;
 
 fn main() -> io::Result<()> {
     let mut state = State::new();
@@ -25,7 +27,7 @@ fn main() -> io::Result<()> {
 
         // Use the read-in value
         println!("Read in: {}", &buf);
-        println!("Full path: {:?}", get_abs_path(&buf, &state));
+        println!("Full path: {:?}", get_canon_path(&buf, &state));
 
         buf.clear();
     }
