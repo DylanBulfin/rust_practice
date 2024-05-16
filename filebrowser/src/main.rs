@@ -25,9 +25,7 @@ fn main() -> io::Result<()> {
         // Removes trailing newline
         buf.pop();
 
-        // Use the read-in value
-        println!("Read in: {}", &buf);
-        println!("Full path: {:?}", get_canon_path(&buf, &state));
+        println!("{:?}", com)
 
         buf.clear();
     }
