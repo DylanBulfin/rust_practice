@@ -1,52 +1,50 @@
-type Tail = Vec<String>;
+use std::{fs, path::PathBuf};
 
-#[derive(Debug)]
-pub enum Command {
-    // Change directory
-    // 1 argument
-    CD(Tail),
+use crate::{paths::get_canon_path, types::State};
 
-    // Copy file(s)
-    // 1+ arguments
-    CP(Tail),
+fn get_file_list(dir: &PathBuf) -> Vec<String> {
+    let paths = fs::read_dir(dir).unwrap();
 
-    // Cut file(s)
-    // 1+ arguments
-    CT(Tail),
-
-    // Paste file(s) into a directory
-    // 1 argument
-    PS(Tail),
-
-    // Rename file
-    // 2 arguments (old name, new name)
-    RN(Tail),
-
-    // Remove file(s)
-    // 1+ arguments
-    RM(Tail),
-
-    // Open file in editor
-    // 1 argument
-    ED(Tail),
-
-    // New file(s)
-    // 1+ argument
-    NF(Tail),
+    paths
+        .map(|x| String::from(x.unwrap().path().to_str().unwrap()))
+        .collect()
 }
 
-pub fn parse_command(cmd: &str) -> Command {
-    let words: Vec<String> = cmd.split(" ").map(|x | x.to_string()).collect();
-
-    match words[0].as_str() {
-        "cd" => Command::CD(words[1..].to_vec()),
-        "cp" => Command::CP(words[1..].to_vec()),
-        "ct" => Command::CT(words[1..].to_vec()),
-        "ps" => Command::PS(words[1..].to_vec()),
-        "rn" => Command::RN(words[1..].to_vec()),
-        "rm" => Command::RM(words[1..].to_vec()),
-        "ed" => Command::ED(words[1..].to_vec()),
-        "nf" => Command::NF(words[1..].to_vec()),
-        _ => panic!("Invalid command"),
+fn print_file_list(files: Vec<String>) {
+    println!("");
+    for c in files.chunks(2) {
+        if c.len() == 1 {
+            println!("{}", c[0])
+        } else {
+            println!("{}    {}", c[0], c[1])
+        }
     }
+    println!("");
+}
+
+pub fn change_directory(tail: Vec<String>, state: &mut State) -> Result<(), String> {
+    if tail.len() != 1 {
+        return Err(String::from("This command requires exactly 1 argument"));
+    }
+
+    if let Ok(path) = get_canon_path(tail[0].as_str(), &state) {
+        print_file_list(get_file_list(&path));
+        state.set_cwd(path);
+    } else {
+        return Err(String::from(
+            "Error getting full path. Dir likely doesn't exist",
+        ));
+    }
+
+    Ok(())
+}
+
+pub fn quit(tail: Vec<String>, state: &mut State, quit_flag: &mut bool) -> Result<(), String> {
+    if tail.len() != 0 {
+        return Err(String::from("This command requires exactly 0 arguments"));
+    }
+
+    *quit_flag = true;
+
+    Ok(())
 }

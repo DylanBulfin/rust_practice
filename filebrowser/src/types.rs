@@ -28,12 +28,16 @@ impl State {
         }
     }
 
-    pub fn get_cwd(&self) -> String {
+    pub fn get_cwd_str(&self) -> String {
         String::from(self.cwd.to_str().unwrap())
     }
 
-    pub fn set_cwd(&mut self, path: &str) {
-        self.cwd = PathBuf::from(path);
+    pub fn get_cwd(&self) -> &PathBuf {
+        &self.cwd
+    }
+
+    pub fn set_cwd(&mut self, path: PathBuf) {
+        self.cwd = path;
     }
 
     pub fn add_to_clip(&mut self, path: &str, is_cut: bool) {
