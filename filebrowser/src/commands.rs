@@ -1,6 +1,13 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fmt::format,
+    fs,
+    path::{Path, PathBuf},
+};
 
-use crate::{paths::get_canon_path, types::State};
+use crate::{
+    paths::get_canon_path,
+    types::{ClipEntry, State},
+};
 
 use colored::{ColoredString, Colorize};
 
@@ -69,25 +76,100 @@ pub fn list_files(tail: Vec<String>, state: &State) -> Result<(), String> {
 }
 
 pub fn remove_files(tail: Vec<String>, state: &State) -> Result<(), String> {
-    let mut remove_list: Vec<(PathBuf,String)> = Vec::new();
+    let mut remove_list: Vec<(PathBuf, String)> = Vec::new();
+
     for f in tail {
         if let Ok(path) = get_canon_path(f.as_str(), state) {
-            if path.is_dir()  {
-                return Err(String::from("Only file deletion supported currently, aborting"));
+            if path.is_dir() {
+                return Err(String::from(
+                    "Only file deletion supported currently, aborting",
+                ));
             }
-            
+
             remove_list.push((path, f));
         } else {
-            return Err(String::from("Error getting full path. File likely doesn't exist"));
+            return Err(String::from(
+                "Error getting full path. File likely doesn't exist",
+            ));
         }
     }
 
-    for (f, name) in remove_list{
+    for (f, name) in remove_list {
         if let Ok(()) = fs::remove_file(f) {
             println!("Successfully removed file {}", name);
         } else {
             return Err(format!("Unable to delete file {}", name));
         };
+    }
+
+    Ok(())
+}
+
+fn add_to_clip(tail: Vec<String>, state: &mut State, is_cut: bool) -> Result<(), String> {
+    let mut copy_list: Vec<(PathBuf, String)> = Vec::new();
+
+    for f in tail {
+        if let Ok(path) = get_canon_path(f.as_str(), state) {
+            if path.is_dir() {
+                return Err(String::from(
+                    "Only file deletion supported currently, aborting",
+                ));
+            }
+
+            copy_list.push((path, f.to_string()));
+        } else {
+            return Err(String::from(
+                "Error getting full path. File likely doesn't exist",
+            ));
+        }
+    }
+
+    for (path, name) in copy_list {
+        state.add_to_clip(path, name, is_cut);
+    }
+
+    Ok(())
+}
+
+pub fn copy(tail: Vec<String>, state: &mut State) -> Result<(), String> {
+    add_to_clip(tail, state, false)
+}
+
+pub fn cut(tail: Vec<String>, state: &mut State) -> Result<(), String> {
+    add_to_clip(tail, state, true)
+}
+
+pub fn paste(tail: Vec<String>, state: &mut State) -> Result<(), String> {
+    if tail.len() != 0 {
+        return Err(String::from("This command requires exactly 0 arguments"));
+    }
+
+    let clip = state.clear_clip();
+
+    for e in clip {
+        let mut new_file= PathBuf::from(state.get_cwd_str());
+        new_file.push(e.get_path().file_name().unwrap());
+        if let Err(_) = fs::copy(e.get_path(), new_file) {
+            return Err(format!("Failed to copy file {}, aborting", e.get_name()));
+        }
+
+        if e.is_cut() {
+            if let Err(_) = fs::remove_file(e.get_path()) {
+                return Err(format!("Failed to clean old version: {}", e.get_name()));
+            }
+
+            println!(
+                "Successfully moved file {} to {}",
+                e.get_name(),
+                state.get_cwd_str()
+            );
+        } else {
+            println!(
+                "Successfully copied file {} to {}",
+                e.get_name(),
+                state.get_cwd_str()
+            );
+        }
     }
 
     Ok(())

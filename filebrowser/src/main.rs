@@ -37,13 +37,16 @@ fn main() -> io::Result<()> {
             Command::QT(tail) => commands::quit(tail, &mut quit_flag),
             Command::LS(tail) => commands::list_files(tail, &state),
             Command::RM(tail) => commands::remove_files(tail, &state),
+            Command::CP(tail) => commands::copy(tail, &mut state),
+            Command::CT(tail) => commands::cut(tail, &mut state),
+            Command::PS(tail) => commands::paste(tail, &mut state),
             _ => Ok(()),
         };
 
-        println!("");
-
         if let Err(msg) = res {
-            eprintln!("{}", msg);
+            eprintln!("{}\n", msg.red());
+        } else {
+            println!("");
         }
 
         if quit_flag {
