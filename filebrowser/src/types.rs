@@ -1,9 +1,10 @@
 use std::env::var;
 use std::path::{Path, PathBuf};
 
+use crate::paths::get_canon_path;
+
 pub struct ClipEntry {
     path: PathBuf,
-    name: String,
     is_cut: bool,
 }
 
@@ -13,8 +14,8 @@ pub struct State {
 }
 
 impl ClipEntry {
-    pub fn new(path: PathBuf, name: String, is_cut: bool) -> Self {
-        ClipEntry { path, name, is_cut }
+    pub fn new(path: PathBuf, is_cut: bool) -> Self {
+        ClipEntry { path, is_cut }
     }
 
     pub fn get_path(&self) -> PathBuf {
@@ -23,10 +24,6 @@ impl ClipEntry {
 
     pub fn is_cut(&self) -> bool {
         self.is_cut
-    }
-
-    pub fn get_name(&self) -> &str {
-        &self.name
     }
 }
 
@@ -50,8 +47,8 @@ impl State {
         self.cwd = path;
     }
 
-    pub fn add_to_clip(&mut self, path: PathBuf, name: String, is_cut: bool) {
-        let entry = ClipEntry::new(path, name, is_cut);
+    pub fn add_to_clip(&mut self, path: PathBuf, is_cut: bool) {
+        let entry = ClipEntry::new(path, is_cut);
         self.clip.push(entry);
     }
 

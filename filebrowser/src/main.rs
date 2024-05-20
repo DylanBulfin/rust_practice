@@ -40,7 +40,9 @@ fn main() -> io::Result<()> {
             Command::CP(tail) => commands::copy(tail, &mut state),
             Command::CT(tail) => commands::cut(tail, &mut state),
             Command::PS(tail) => commands::paste(tail, &mut state),
-            _ => Ok(()),
+            Command::RN(tail) => commands::remame(tail, &state),
+            Command::NF(tail) => commands::new_files(tail, &state),
+            _ => Ok(())
         };
 
         if let Err(msg) = res {

@@ -1,11 +1,11 @@
 use std::{
     fmt::format,
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
 };
 
 use crate::{
-    paths::get_canon_path,
+    paths::{get_canon_path, get_file_name},
     types::{ClipEntry, State},
 };
 
@@ -76,7 +76,7 @@ pub fn list_files(tail: Vec<String>, state: &State) -> Result<(), String> {
 }
 
 pub fn remove_files(tail: Vec<String>, state: &State) -> Result<(), String> {
-    let mut remove_list: Vec<(PathBuf, String)> = Vec::new();
+    let mut remove_list: Vec<PathBuf> = Vec::new();
 
     for f in tail {
         if let Ok(path) = get_canon_path(f.as_str(), state) {
@@ -86,7 +86,7 @@ pub fn remove_files(tail: Vec<String>, state: &State) -> Result<(), String> {
                 ));
             }
 
-            remove_list.push((path, f));
+            remove_list.push(path);
         } else {
             return Err(String::from(
                 "Error getting full path. File likely doesn't exist",
@@ -94,11 +94,12 @@ pub fn remove_files(tail: Vec<String>, state: &State) -> Result<(), String> {
         }
     }
 
-    for (f, name) in remove_list {
+    for f in remove_list {
+        let fname = get_file_name(&f);
         if let Ok(()) = fs::remove_file(f) {
-            println!("Successfully removed file {}", name);
+            println!("Successfully removed file {}", fname);
         } else {
-            return Err(format!("Unable to delete file {}", name));
+            return Err(format!("Unable to delete file {}", fname));
         };
     }
 
@@ -106,7 +107,7 @@ pub fn remove_files(tail: Vec<String>, state: &State) -> Result<(), String> {
 }
 
 fn add_to_clip(tail: Vec<String>, state: &mut State, is_cut: bool) -> Result<(), String> {
-    let mut copy_list: Vec<(PathBuf, String)> = Vec::new();
+    let mut copy_list: Vec<PathBuf> = Vec::new();
 
     for f in tail {
         if let Ok(path) = get_canon_path(f.as_str(), state) {
@@ -116,7 +117,7 @@ fn add_to_clip(tail: Vec<String>, state: &mut State, is_cut: bool) -> Result<(),
                 ));
             }
 
-            copy_list.push((path, f.to_string()));
+            copy_list.push(path);
         } else {
             return Err(String::from(
                 "Error getting full path. File likely doesn't exist",
@@ -124,8 +125,8 @@ fn add_to_clip(tail: Vec<String>, state: &mut State, is_cut: bool) -> Result<(),
         }
     }
 
-    for (path, name) in copy_list {
-        state.add_to_clip(path, name, is_cut);
+    for path in copy_list {
+        state.add_to_clip(path, is_cut);
     }
 
     Ok(())
@@ -147,26 +148,28 @@ pub fn paste(tail: Vec<String>, state: &mut State) -> Result<(), String> {
     let clip = state.clear_clip();
 
     for e in clip {
-        let mut new_file= PathBuf::from(state.get_cwd_str());
+        let mut new_file = PathBuf::from(state.get_cwd_str());
         new_file.push(e.get_path().file_name().unwrap());
+
+        let fname = get_file_name(&e.get_path());
         if let Err(_) = fs::copy(e.get_path(), new_file) {
-            return Err(format!("Failed to copy file {}, aborting", e.get_name()));
+            return Err(format!("Failed to copy file {}, aborting", fname));
         }
 
         if e.is_cut() {
             if let Err(_) = fs::remove_file(e.get_path()) {
-                return Err(format!("Failed to clean old version: {}", e.get_name()));
+                return Err(format!("Failed to clean old version: {}", fname));
             }
 
             println!(
                 "Successfully moved file {} to {}",
-                e.get_name(),
+                fname,
                 state.get_cwd_str()
             );
         } else {
             println!(
                 "Successfully copied file {} to {}",
-                e.get_name(),
+                fname,
                 state.get_cwd_str()
             );
         }
@@ -174,6 +177,57 @@ pub fn paste(tail: Vec<String>, state: &mut State) -> Result<(), String> {
 
     Ok(())
 }
+
+pub fn remame(tail: Vec<String>, state: &State) -> Result<(), String> {
+    if tail.len() != 2 {
+        return Err(String::from("This command requires exactly 2 arguments"));
+    }
+
+    if let Ok(old_file) = get_canon_path(tail[0].as_str(), state) {
+        if let Err(_) = fs::rename(old_file, PathBuf::from(tail[1].as_str())) {
+            return Err(String::from("Rename failed"));
+        }
+    } else {
+        return Err(String::from(
+            "Error getting full path. File likely doesn't exist",
+        ));
+    }
+
+    Ok(())
+}
+
+pub fn new_files(tail: Vec<String>, state: &State) -> Result<(), String> {
+    if tail.len() < 1 {
+        return Err(String::from("This command requires 1 or more arguments"));
+    }
+
+    for f in tail {
+        if let Some(dir) = PathBuf::from(f.as_str()).parent() {
+            if let Ok(mut path) = dir.canonicalize() {
+                if let Some(fname) = PathBuf::from(f.as_str()).file_name() {
+                    path.push(fname);
+                    if let Err(_) = File::create_new(path.as_path()) {
+                        return Err(format!("Unable to create file {}", get_file_name(&path)));
+                    }
+                } else {
+                    return Err(format!("{} is not a file, can not create directories", f));
+                }
+            } else {
+                return Err(format!(
+                    "Error finding directory for argument {}. Likely doesn't exist",
+                    f
+                ));
+            }
+        } else {
+            return Err(String::from("No parent for given path"));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn open_editor(tail: Vec<String>, ) 
+
 
 pub fn quit(tail: Vec<String>, quit_flag: &mut bool) -> Result<(), String> {
     if tail.len() != 0 {
