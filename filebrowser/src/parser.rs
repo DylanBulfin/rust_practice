@@ -34,6 +34,9 @@ pub enum Command {
     // 1+ argument
     NF(Tail),
 
+    // New dir(s)
+    ND(Tail),
+
     // List files in directory
     // 0 arguments
     LS(Tail),
@@ -56,6 +59,7 @@ pub fn parse_command(cmd: &str) -> Command {
         "rm" | "remove" => Command::RM(tail),
         "ed" | "edit" | "editor" => Command::ED(tail),
         "nf" | "new" | "newfile" => Command::NF(tail),
+        "nd" | "newdir" | "newdirectory" => Command::ND(tail),
         "ls" | "list" => Command::LS(tail),
         "q" | "qt" | "quit" => Command::QT(tail),
         _ => panic!("Invalid command"),

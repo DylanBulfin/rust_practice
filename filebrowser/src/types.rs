@@ -1,7 +1,5 @@
 use std::env::var;
-use std::path::{Path, PathBuf};
-
-use crate::paths::get_canon_path;
+use std::path::PathBuf;
 
 pub struct ClipEntry {
     path: PathBuf,

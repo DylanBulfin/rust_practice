@@ -1,12 +1,12 @@
 use std::{
-    fmt::format,
     fs::{self, File},
-    path::{Path, PathBuf},
+    path::PathBuf,
+    process::Command
 };
 
 use crate::{
     paths::{get_canon_path, get_file_name},
-    types::{ClipEntry, State},
+    types::State,
 };
 
 use colored::{ColoredString, Colorize};
@@ -178,7 +178,7 @@ pub fn paste(tail: Vec<String>, state: &mut State) -> Result<(), String> {
     Ok(())
 }
 
-pub fn remame(tail: Vec<String>, state: &State) -> Result<(), String> {
+pub fn rename(tail: Vec<String>, state: &State) -> Result<(), String> {
     if tail.len() != 2 {
         return Err(String::from("This command requires exactly 2 arguments"));
     }
@@ -196,7 +196,7 @@ pub fn remame(tail: Vec<String>, state: &State) -> Result<(), String> {
     Ok(())
 }
 
-pub fn new_files(tail: Vec<String>, state: &State) -> Result<(), String> {
+pub fn new_files(tail: Vec<String>, _: &State) -> Result<(), String> {
     if tail.len() < 1 {
         return Err(String::from("This command requires 1 or more arguments"));
     }
@@ -210,7 +210,7 @@ pub fn new_files(tail: Vec<String>, state: &State) -> Result<(), String> {
                         return Err(format!("Unable to create file {}", get_file_name(&path)));
                     }
                 } else {
-                    return Err(format!("{} is not a file, can not create directories", f));
+                    return Err(format!("{} is not a file, use nd to create directories", f));
                 }
             } else {
                 return Err(format!(
@@ -226,8 +226,66 @@ pub fn new_files(tail: Vec<String>, state: &State) -> Result<(), String> {
     Ok(())
 }
 
-pub fn open_editor(tail: Vec<String>, ) 
+pub fn new_dirs(tail: Vec<String>, _: &State)-> Result<(), String>{
+    if tail.len() < 1 {
+        return Err(String::from("This command requires 1 or more arguments"));
+    }
 
+    for d in tail {
+        let path = PathBuf::from(d.as_str());
+        
+        if let Some(child) = path.components().rev().next() {
+            if let Some(dir) = PathBuf::from(d.as_str()).parent() {
+                if let Ok(mut path) = dir.canonicalize() {
+                    path.push(child);
+                    if let Err(_) = fs::create_dir(path) {
+                        return Err(format!("Unable to create directory {}", d));
+                    }
+                } else {
+                    return Err(format!("Can't find parent directory for argument {}", d))
+                }
+            } else {
+                return Err(String::from("No parent for given path"));
+            }
+        } else {
+            return Err(String::from("Failed to find last component of path"));
+        }
+    }
+
+    Ok(())
+}
+
+pub fn open_editor(tail: Vec<String>, state: &State) -> Result<(), String> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+
+    for f in tail.as_slice() {
+        if let Ok(path) = get_canon_path(f.as_str(), state) {
+            if path.is_dir() {
+                return Err(format!("{} is not a file, aborting", f));
+            }
+
+            paths.push(path);
+        } else {
+            return Err(format!(
+                "Unable to process argument {}, file likely doesn't exist",
+                f
+            ));
+        }
+    }
+
+    if let Ok(editor) = std::env::var("EDITOR") {
+        let mut editor_comm = Command::new(editor);
+        editor_comm.args(tail);
+
+        if let Err(_) = editor_comm.status() {
+            return Err(String::from(
+                "Unknown error opening editor, make sure $EDITOR is set correctly",
+            ));
+        }
+    }
+
+    Ok(())
+}
 
 pub fn quit(tail: Vec<String>, quit_flag: &mut bool) -> Result<(), String> {
     if tail.len() != 0 {
